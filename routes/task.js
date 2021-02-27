@@ -65,6 +65,22 @@ router.put("/:id", async (req, res) => {
   } catch (error) {
     res.status(500).send(error.message);
   }
+  /**
+ try {
+   const updated = await Task.updateOne(
+     { _id: id },
+     { text, day, reminder },
+     { omitUndefined: true } // delete any properties whose value is undefined
+   )
+   if (!updated.n) return res.status(404).json(null)
+
+   console.log('updated')
+   res.json(await Task.findById(id))
+ } catch (error) {
+   console.log(error.message)
+   res.status(500).json({ error: error.message })
+ }
+ */
 });
 
 //DELETE
