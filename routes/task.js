@@ -1,79 +1,86 @@
 const express = require("express");
-const tasks = require("../data");
+const Task = require("../models/Task.model");
 const logger = require("../middleware/logger");
 
 const router = express.Router();
 
 //GET all tasks
-router.get("/", logger, (req, res) => {
+router.get("/", logger, async (req, res) => {
+  const tasks = await Task.find({});
   res.send(tasks);
 });
 
 //GET one task
-router.get("/:id", (req, res) => {
-  const id = req.params.id;
-  const task = tasks.find((task) => task.id === +id); //+id equivalent to parseInt(id)
-  res.send(task);
+router.get("/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const task = await Task.findById(id);
+    if (!task)
+      return res.status(404).send({ error: `No task with the id ${id}` });
+    res.send(task);
+  } catch (error) {
+    res.status(500).send(error.message);
+  }
 });
 
 //POST request
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   const { text, day, reminder } = req.body;
 
-  if (!text || !day || !reminder) {
+  if (!text || !day) {
     return res
       .status(400)
       .send({ error: "Please provide text, day and reminder" });
   }
 
-  const lastId = tasks.slice(-1)[0].id;
-
-  const newId = lastId + 1;
-  const task = {
-    id: newId,
+  const task = new Task({
     text,
     day,
-    reminder,
-  };
+    reminder: reminder ?? false,
+  });
 
-  tasks.push(task);
+  await task.save();
 
   res.statusCode = 201;
   res.send(task);
 });
 
 //UPDATE
-router.put("/:id", (req, res) => {
+router.put("/:id", async (req, res) => {
   const { id } = req.params;
   const { text, day, reminder } = req.body;
 
-  const found = tasks.some((task) => task.id === +id);
+  try {
+    const task = await Task.findById(id);
+    if (!task)
+      return res.status(404).send({ error: `No task with the id ${id}` });
+    task.text = text ?? task.text;
+    task.day = day ?? task.day;
+    task.reminder = reminder ?? task.reminder;
 
-  if (!found) {
-    return res.status(404).send({ error: `No task with id ${id}` });
+    await task.save();
+
+    res.send(task);
+  } catch (error) {
+    res.status(500).send(error.message);
   }
-
-  tasks.forEach((task) => {
-    if (task.id === +id) {
-      task = {
-        id,
-        text: text ?? task.text,
-        day: day ?? task.day,
-        reminder: reminder ?? task.reminder,
-      };
-    }
-  });
-
-  res.send(updatedTask);
 });
 
 //DELETE
-router.delete("/:id", (req, res) => {
+router.delete("/:id", async (req, res) => {
   const { id } = req.params;
-  let index = tasks.findIndex((task) => task.id === +id);
-  if (index < 0) return res.status(404).send(false);
-  tasks.splice(index, 1);
-  res.send(true);
+
+  try {
+    const deleted = await Task.deleteOne({ _id: id });
+    if (!deleted.deletedCount) return res.status.apply(404).send(false);
+
+    console.log("deleted");
+    return res.send(true);
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).send(error.message);
+  }
 });
 
 module.exports = router;
